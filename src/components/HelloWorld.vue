@@ -1,138 +1,123 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br />
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener"
-        >vue-cli documentation</a
-      >.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel"
-          target="_blank"
-          rel="noopener"
-          >babel</a
-        >
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-typescript"
-          target="_blank"
-          rel="noopener"
-          >typescript</a
-        >
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-router"
-          target="_blank"
-          rel="noopener"
-          >router</a
-        >
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-vuex"
-          target="_blank"
-          rel="noopener"
-          >vuex</a
-        >
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint"
-          target="_blank"
-          rel="noopener"
-          >eslint</a
-        >
-      </li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li>
-        <a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a>
-      </li>
-      <li>
-        <a href="https://forum.vuejs.org" target="_blank" rel="noopener"
-          >Forum</a
-        >
-      </li>
-      <li>
-        <a href="https://chat.vuejs.org" target="_blank" rel="noopener"
-          >Community Chat</a
-        >
-      </li>
-      <li>
-        <a href="https://twitter.com/vuejs" target="_blank" rel="noopener"
-          >Twitter</a
-        >
-      </li>
-      <li>
-        <a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a>
-      </li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li>
-        <a href="https://router.vuejs.org" target="_blank" rel="noopener"
-          >vue-router</a
-        >
-      </li>
-      <li>
-        <a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a>
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-devtools#vue-devtools"
-          target="_blank"
-          rel="noopener"
-          >vue-devtools</a
-        >
-      </li>
-      <li>
-        <a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener"
-          >vue-loader</a
-        >
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/awesome-vue"
-          target="_blank"
-          rel="noopener"
-          >awesome-vue</a
-        >
-      </li>
-    </ul>
-  </div>
+    <div class="container vertical">
+        <div class="container">
+            <video
+                    id="video"
+                    autoplay="true"
+                    v-if="streamSrcObject"
+                    :srcObject.prop="streamSrcObject"
+            ></video>
+            <img alt="imgId" id="imgId" :src="captureSrc"/>
+        </div>
+        <div class="container">
+            <button id="takePhotoButtonId" @click="takePhoto">Take photo</button>
+            <button id="stopCameraButtonId" @click="toggleCamera">
+                Stop/start camera
+            </button>
+            <label>
+                <select v-model="selectedCamera">
+                    <option v-for="camera in cameras"
+                            :key="camera.id"
+                            :value="camera.id">
+                        {{ camera.label }}
+                    </option>
+                </select>
+            </label>
+        </div>
+    </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from "vue-property-decorator";
+    import {Component, Vue} from "vue-property-decorator";
+    import {Map, Set} from "immutable";
 
-@Component
-export default class HelloWorld extends Vue {
-  @Prop() private msg!: string;
-}
+    class Device {
+
+        constructor(id: string, label: string) {
+            this.id = id;
+            this.label = label;
+        }
+
+        readonly id: string;
+        readonly label: string;
+
+    }
+
+    @Component
+    export default class HelloWorld extends Vue {
+        private streamSrcObject: MediaStream | null = null;
+        private captureSrc: string = "";
+        private cameras: Set<Device> = Set();
+        private selectedCamera: string | null = null;
+
+        mounted() {
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+                    this.cameras = Set(devices.filter(d => d.kind === "videoinput"))
+                        .reduce((acc, d) => acc.set(d.deviceId, new Device(d.deviceId, d.label)), Map<string, Device>())
+                        .toSet();
+                    const first = this.cameras.first<Device>();
+                    if (first) {
+                        this.selectedCamera = first.id;
+                    }
+                }
+            );
+            let
+                constraints = {
+                    audio: false,
+                    video: {
+                        facingMode: "front",
+                        width: {min: 640, ideal: 1920, max: 1920},
+                        height: {min: 640, ideal: 1080, max: 1080}
+                    }
+                };
+            navigator
+                .mediaDevices
+                .getUserMedia(constraints)
+
+                .then(stream
+
+                        => {
+                        this
+                            .streamSrcObject = stream;
+                    }
+                )
+                .catch(e => {
+                    console.log("Unable to read from webcam ", e);
+                });
+        }
+
+        toggleCamera() {
+        }
+
+        takePhoto() {
+        }
+    }
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
+    .container {
+        display: flex;
+    }
+
+    .vertical {
+        flex-direction: column;
+    }
+
+    h3 {
+        margin: 40px 0 0;
+    }
+
+    ul {
+        list-style-type: none;
+        padding: 0;
+    }
+
+    li {
+        display: inline-block;
+        margin: 0 10px;
+    }
+
+    a {
+        color: #42b983;
+    }
 </style>
