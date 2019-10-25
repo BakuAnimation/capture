@@ -1,5 +1,5 @@
 <template>
-  <div class="centered">
+  <div>
     <HelloWorld msg="Welcome to Your Vue.js App" />
   </div>
 </template>
@@ -17,10 +17,4 @@ export default {
 </script>
 
 <style>
-.centered {
-  position: fixed; /* or absolute */
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
 </style>
