@@ -2,10 +2,11 @@
     <div class="container vertical">
         <div class="container centered">
             <video ref="video" autoplay v-if="videoStream" :srcObject.prop="videoStream" width="640"
+                   :style="computedEffect"
                    height="480"></video>
         </div>
         <div class="container centered">
-            <button id="takePhotoButtonId" @click="record">Record</button>
+            <button id="takePhotoButtonId" @click="record" :disabled="capturing">Take photo</button>
             <button id="stopCameraButtonId" @click="toggleCamera">
                 Stop/start camera
             </button>
@@ -19,19 +20,26 @@
                 </select>
             </label>
         </div>
+        <div class="container">
+            <label>
+                Effect :
+                <select v-model="appliedEffect">
+                    <option v-for="effect in effects"
+                            :key="effect.name"
+                            :value="effect.name">
+                        {{ effect.name }}
+                    </option>
+                </select>
+            </label>
+            <label>
+                
+            </label>
+        </div>
         <div>
             {{ storageDetails }}
         </div>
-        <div class="">
-            <RecycleScroller
-                    direction="vertical"
-                    class="scroller"
-                    :items="captures"
-                    :item-size="captures.length"
-                    v-slot="{ item , index}"
-            >
-                <img :key="index" :src="item.src"/>
-            </RecycleScroller>
+        <div class="gallery">
+            <img alt="" v-for="( item, index ) in captures" :key="index" :src="item.src" class="gallery-img"/>
         </div>
     </div>
 </template>
@@ -39,7 +47,6 @@
 <script lang="ts">
     import {Component, Vue, Watch} from "vue-property-decorator";
     import {Map, Set} from "immutable";
-    import {RecycleScroller} from "vue-virtual-scroller";
 
     class Device {
 
@@ -55,20 +62,33 @@
 
     interface Capture {
         readonly src: string;
+        readonly sizeInBytes: number;
     }
 
-    @Component({
-        components: {
-            RecycleScroller
-        }
-    })
+    @Component
     export default class HelloWorld extends Vue {
         private videoStream: MediaStream | null = null;
         private storageDetails: string = "";
         private captures: Capture[] = [];
         private cameras: Set<Device> = Set();
         private selectedCamera: string = "";
-        private mediaRecorder?: MediaRecorder;
+        private capturing: boolean = false;
+
+        private effects = [
+            {name: "none", unit: "none"},
+            {name: "blur", unit: "length"},
+            {name: "brightness", unit: "percent"},
+            {name: "contrast", unit: "percent"},
+            {name: "grayscale", unit: "percent"},
+            {name: "hue-rotate", unit: "angle"},
+            {name: "invert", unit: "percent"},
+            {name: "opacity", unit: "percent"},
+            {name: "saturate", unit: "percent"},
+            {name: "sepia", unit: "percent"}
+        ];
+
+        private appliedEffect = "none";
+        private effectValue = 5;
 
         async mounted() {
             navigator.mediaDevices.enumerateDevices()
@@ -88,12 +108,28 @@
         }
 
         private async refreshStorage() {
-            const {usage, quota} = await navigator.storage.estimate();
-            const percentUsed = Math.round(usage!! / quota!! * 100);
-            const usageInMib = Math.round(usage!! / (1024 * 1024));
-            const quotaInMib = Math.round(quota!! / (1024 * 1024));
+            const total = this.captures.reduce((acc, value) => acc + value.sizeInBytes, 0);
+            const average = total / this.captures.length;
+            const averageFormatted = this.formatBytes(average);
+            const totalFormatted = this.formatBytes(total);
 
-            this.storageDetails = `${usageInMib} out of ${quotaInMib} MiB used (${percentUsed}%)`;
+            const {usage, quota} = await navigator.storage.estimate();
+            const usageFormatted = this.formatBytes(usage!);
+            const quotaFormatted = this.formatBytes(quota!);
+
+            this.storageDetails = `${this.captures.length} captures ~ ${averageFormatted} / ${totalFormatted}. Storage ${usageFormatted}/${quotaFormatted}`;
+        }
+
+        private formatBytes(bytes: number, decimals = 2): string {
+            if (bytes === 0) return '0 Bytes';
+
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
         private openCamera(camera?: string) {
@@ -111,31 +147,18 @@
                 .getUserMedia(constraints)
                 .then(stream => {
                     this.videoStream = stream;
-                    this.mediaRecorder = new MediaRecorder(this.videoStream);
-                    // const chunks: BlobPart[] = [];
-
-                    this.mediaRecorder.onstop = (e: any) => {
-                        /*console.log("data available after MediaRecorder.stop() called.");
-        
-                        const audio = document.createElement('audio');
-                        audio.controls = true;
-                        const blob = new Blob(chunks, {'type': 'audio/ogg; codecs=opus'});
-                        const audioURL = window.URL.createObjectURL(blob);
-                        audio.src = audioURL;*
-                        console.log("recorder stopped");*/
-                    };
-
-                    this.mediaRecorder.ondataavailable = (e: any) => {
-                        console.log("Image captured", e);
-                        const src = window.URL.createObjectURL(e.data);
-                        console.log("src", src);
-                        this.captures.push({src: src});
-                    };
                 })
                 .catch(e => {
                     console.log("Unable to read from web-cam ", e);
                 });
 
+        }
+
+        get computedEffect() {
+            if (this.appliedEffect == "none") {
+                return "";
+            }
+            return `filter: ${this.appliedEffect}(${this.effectValue})`;
         }
 
         @Watch('selectedCamera')
@@ -147,22 +170,20 @@
         }
 
         async record() {
-            /*if (this.mediaRecorder.state == "recording") {
-                this.mediaRecorder.stop();
-                console.log(this.mediaRecorder.state);
-            } else {
-                this.mediaRecorder.start();
-                console.log(this.mediaRecorder.state);
-            }*/
+            this.capturing = true;
             let canvas = document.createElement("canvas");
-            const video = this.$refs.video;
+            const video = this.$refs.video as HTMLVideoElement;
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
-            let src = canvas.toDataURL("image/jpg", 0.1);
-            this.captures.push({id: src, src: src});
+            canvas.toBlob(async blob => {
+                const sizeInBytes = blob!.size;
+                const src = URL.createObjectURL(blob);
+                this.captures.push({src, sizeInBytes});
 
-            await this.refreshStorage();
+                await this.refreshStorage();
+                this.capturing = false;
+            }, "image/jpg", 1);
         }
     }
 </script>
@@ -181,8 +202,26 @@
         align-items: center;
     }
 
-    .scroller {
-        height: 100%;
+    .gallery {
+        margin-top: 20px;
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-top: 20px;
+        width: 99%;
+        height: 174px;
+        overflow-x: auto;
+        white-space: nowrap;
+        background-color: rgb(52, 143, 235);
+    }
+
+    .gallery-img {
+        cursor: pointer;
+        margin-left: 10px;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        width: 256px;
+        height: 144px;
+        background-color: rgb(52, 143, 235);
     }
 
     h3 {
