@@ -5,36 +5,61 @@
                    :style="computedEffect"
                    height="480"></video>
         </div>
+        <div class="container columns">
+            <div class="column">
+                <b-field label="Camera">
+                    <b-select v-model="selectedCamera">
+                        <option v-for="camera in cameras"
+                                :key="camera.id"
+                                :value="camera.id">
+                            {{ camera.label }}
+                        </option>
+                    </b-select>
+                </b-field>
+            </div>
+            <div class="column">
+                <b-field label="Record">
+                    <b-button id="takePhotoButtonId" @click="record" :loading="capturing">Take photo</b-button>
+                </b-field>
+            </div>
+        </div>
+        <div class="container columns">
+            <div class="column">
+                <b-field label="Capture type">
+                    <b-select v-model="captureType">
+                        <option v-for="captureType in captureTypes"
+                                :key="captureType"
+                                :value="captureType">
+                            {{ captureType }}
+                        </option>
+                    </b-select>
+                </b-field>
+            </div>
+            <div class="column">
+                <b-field label="Adjust quality">
+                    <b-slider :min="0" :max="1" :step="0.1" v-model="quality"></b-slider>
+                </b-field>
+            </div>
+        </div>
+        <div class="container columns">
+            <div class="column">
+                <b-field label="Effect">
+                    <b-select v-model="appliedEffect">
+                        <option v-for="effect in filters"
+                                :key="effect.name"
+                                :value="effect.name">
+                            {{ effect.name }}
+                        </option>
+                    </b-select>
+                </b-field>
+            </div>
+            <div class="column">
+                <b-field label="Adjust effect">
+                    <b-slider :min="0" :max="100" v-model="effectValue"></b-slider>
+                </b-field>
+            </div>
+        </div>
         <div class="container centered">
-            <b-button id="takePhotoButtonId" @click="record" :loading="capturing">Take photo</b-button>
-            <b-button id="stopCameraButtonId" @click="toggleCamera">
-                Stop/start camera
-            </b-button>
-            <label>
-                <b-select v-model="selectedCamera">
-                    <option v-for="camera in cameras"
-                            :key="camera.id"
-                            :value="camera.id">
-                        {{ camera.label }}
-                    </option>
-                </b-select>
-            </label>
-        </div>
-        <div class="container">
-            <b-field label="Effect">
-                <b-select v-model="appliedEffect">
-                    <option v-for="effect in filters"
-                            :key="effect.name"
-                            :value="effect.name">
-                        {{ effect.name }}
-                    </option>
-                </b-select>
-            </b-field>
-            <b-field label="Adjust effect">
-                <b-slider :min="0" :max="100" v-model="effectValue"></b-slider>
-            </b-field>
-        </div>
-        <div>
             {{ storageDetails }}
         </div>
         <div class="gallery">
@@ -75,7 +100,7 @@
         private capturing: boolean = false;
 
         private filters: Filter[] = [
-            {name: "none", unit: "none", func: Filters.grayscale},
+            {name: "none", unit: "none", func: Filters.none},
             {name: "blur", unit: "length", func: Filters.grayscale},
             {name: "brightness", unit: "percent", func: Filters.grayscale},
             {name: "contrast", unit: "percent", func: Filters.grayscale},
@@ -88,6 +113,10 @@
         ];
         private appliedEffect = "none";
         private effectValue: number = 5;
+
+        private captureTypes = ["image/jpeg", "image/png"];
+        private captureType: string = "image/jpeg";
+        private quality: number = 1;
 
         async mounted() {
             navigator.mediaDevices.enumerateDevices()
@@ -137,8 +166,8 @@
                 video: {
                     deviceId: camera,
                     facingMode: "front",
-                    width: {min: 640, ideal: 1920, max: 1920},
-                    height: {min: 640, ideal: 1080, max: 1080}
+                    width: {min: 640, ideal: 1920, max: 3840},
+                    height: {min: 640, ideal: 1080, max: 2160}
                 }
             };
             navigator
@@ -182,25 +211,40 @@
 
         async record() {
             this.capturing = true;
-            let canvas = document.createElement("canvas");
-            const video = this.$refs.video as HTMLVideoElement;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context2d = canvas.getContext('2d')!;
-            context2d.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = context2d.getImageData(0, 0, canvas.width, canvas.height);
-            HelloWorld.imageToBlob(imageData)
+            this.saveCaptureAndApplyFilter()
                 .then(async (blob: Blob) => {
                     const sizeInBytes = blob!.size;
                     const src = URL.createObjectURL(blob);
                     this.captures.push({src, sizeInBytes});
-
                     await this.refreshStorage();
                     this.capturing = false;
                 });
         }
 
-        private static imageToBlob(imageData: ImageData, type: string = "image/jpg", quality: number = 1): Promise<Blob> {
+        private saveCaptureAndApplyFilter(): Promise<Blob> {
+            const canvas = document.createElement("canvas");
+            const video = this.$refs.video as HTMLVideoElement;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context2d = canvas.getContext('2d')!;
+            context2d.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const filter = this.filters.find(f => f.name === this.appliedEffect);
+            if (filter) {
+                return this.applyFilter(context2d, canvas, filter);
+            } else {
+                return new Promise<Blob>((resolve, reject) => {
+                    canvas.toBlob(blob => resolve(blob as Blob), this.captureType, this.quality);
+                });
+            }
+        }
+
+        private applyFilter(context2d: CanvasImageData, canvas: HTMLCanvasElement, filter: Filter) {
+            let imageData = context2d.getImageData(0, 0, canvas.width, canvas.height);
+            imageData = filter.func(imageData, {level: this.effectValue});
+            return HelloWorld.toBlob(imageData, this.captureType, this.quality);
+        }
+
+        private static toBlob(imageData: ImageData, type: string, quality: number): Promise<Blob> {
             const w = imageData.width;
             const h = imageData.height;
             const canvas = document.createElement("canvas");
@@ -208,7 +252,6 @@
             canvas.height = h;
             const ctx = canvas.getContext("2d")!;
             ctx.putImageData(imageData, 0, 0);
-
             return new Promise<Blob>((resolve, reject) => {
                 canvas.toBlob(blob => resolve(blob as Blob), type, quality);
             });
@@ -219,6 +262,8 @@
 <style scoped>
     .container {
         display: flex;
+        width: 100%;
+        height: 100%;
     }
 
     .vertical {

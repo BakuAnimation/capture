@@ -6,7 +6,12 @@ export interface Filter {
 
 export class Filters {
 
-    public static grayscale(pixels: ImageData, args: any): ImageData {
+
+    public static none(pixels: ImageData, args: any): ImageData {
+        return pixels;
+    }
+
+    public static grayscale(pixels: ImageData, args: { level: number }): ImageData {
         const d = pixels.data;
         for (let i = 0; i < d.length; i += 4) {
             const r = d[i];
