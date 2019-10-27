@@ -6,34 +6,33 @@
                    height="480"></video>
         </div>
         <div class="container centered">
-            <button id="takePhotoButtonId" @click="record" :disabled="capturing">Take photo</button>
-            <button id="stopCameraButtonId" @click="toggleCamera">
+            <b-button id="takePhotoButtonId" @click="record" :loading="capturing">Take photo</b-button>
+            <b-button id="stopCameraButtonId" @click="toggleCamera">
                 Stop/start camera
-            </button>
+            </b-button>
             <label>
-                <select v-model="selectedCamera">
+                <b-select v-model="selectedCamera">
                     <option v-for="camera in cameras"
                             :key="camera.id"
                             :value="camera.id">
                         {{ camera.label }}
                     </option>
-                </select>
+                </b-select>
             </label>
         </div>
         <div class="container">
-            <label>
-                Effect :
-                <select v-model="appliedEffect">
-                    <option v-for="effect in effects"
+            <b-field label="Effect">
+                <b-select v-model="appliedEffect">
+                    <option v-for="effect in filters"
                             :key="effect.name"
                             :value="effect.name">
                         {{ effect.name }}
                     </option>
-                </select>
-            </label>
-            <label>
-                
-            </label>
+                </b-select>
+            </b-field>
+            <b-field label="Adjust effect">
+                <b-slider :min="0" :max="100" v-model="effectValue"></b-slider>
+            </b-field>
         </div>
         <div>
             {{ storageDetails }}
@@ -47,6 +46,7 @@
 <script lang="ts">
     import {Component, Vue, Watch} from "vue-property-decorator";
     import {Map, Set} from "immutable";
+    import {Filter, Filters} from "@/components/filters";
 
     class Device {
 
@@ -74,21 +74,20 @@
         private selectedCamera: string = "";
         private capturing: boolean = false;
 
-        private effects = [
-            {name: "none", unit: "none"},
-            {name: "blur", unit: "length"},
-            {name: "brightness", unit: "percent"},
-            {name: "contrast", unit: "percent"},
-            {name: "grayscale", unit: "percent"},
-            {name: "hue-rotate", unit: "angle"},
-            {name: "invert", unit: "percent"},
-            {name: "opacity", unit: "percent"},
-            {name: "saturate", unit: "percent"},
-            {name: "sepia", unit: "percent"}
+        private filters: Filter[] = [
+            {name: "none", unit: "none", func: Filters.grayscale},
+            {name: "blur", unit: "length", func: Filters.grayscale},
+            {name: "brightness", unit: "percent", func: Filters.grayscale},
+            {name: "contrast", unit: "percent", func: Filters.grayscale},
+            {name: "grayscale", unit: "percent", func: Filters.grayscale},
+            {name: "hue-rotate", unit: "angle", func: Filters.grayscale},
+            {name: "invert", unit: "percent", func: Filters.grayscale},
+            {name: "opacity", unit: "percent", func: Filters.grayscale},
+            {name: "saturate", unit: "percent", func: Filters.grayscale},
+            {name: "sepia", unit: "percent", func: Filters.grayscale}
         ];
-
         private appliedEffect = "none";
-        private effectValue = 5;
+        private effectValue: number = 5;
 
         async mounted() {
             navigator.mediaDevices.enumerateDevices()
@@ -110,17 +109,17 @@
         private async refreshStorage() {
             const total = this.captures.reduce((acc, value) => acc + value.sizeInBytes, 0);
             const average = total / this.captures.length;
-            const averageFormatted = this.formatBytes(average);
-            const totalFormatted = this.formatBytes(total);
+            const averageFormatted = HelloWorld.formatBytes(average);
+            const totalFormatted = HelloWorld.formatBytes(total);
 
             const {usage, quota} = await navigator.storage.estimate();
-            const usageFormatted = this.formatBytes(usage!);
-            const quotaFormatted = this.formatBytes(quota!);
+            const usageFormatted = HelloWorld.formatBytes(usage!);
+            const quotaFormatted = HelloWorld.formatBytes(quota!);
 
             this.storageDetails = `${this.captures.length} captures ~ ${averageFormatted} / ${totalFormatted}. Storage ${usageFormatted}/${quotaFormatted}`;
         }
 
-        private formatBytes(bytes: number, decimals = 2): string {
+        private static formatBytes(bytes: number, decimals = 2): string {
             if (bytes === 0) return '0 Bytes';
 
             const k = 1024;
@@ -151,14 +150,26 @@
                 .catch(e => {
                     console.log("Unable to read from web-cam ", e);
                 });
-
         }
 
-        get computedEffect() {
-            if (this.appliedEffect == "none") {
+        get computedEffect(): string {
+            const effect = this.filters.find(f => f.name === this.appliedEffect);
+            if (!effect || effect.name == "none") {
                 return "";
             }
-            return `filter: ${this.appliedEffect}(${this.effectValue})`;
+            let unit = "";
+            switch (effect.unit) {
+                case "percent":
+                    unit = "%";
+                    break;
+                case "length":
+                    unit = "px";
+                    break;
+                case "angle":
+                    unit = "deg";
+                    break;
+            }
+            return `filter: ${effect.name}(${this.effectValue}${unit})`;
         }
 
         @Watch('selectedCamera')
@@ -175,7 +186,9 @@
             const video = this.$refs.video as HTMLVideoElement;
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const context2d = canvas.getContext('2d')!;
+            context2d.drawImage(video, 0, 0, canvas.width, canvas.height);
+            //const imageData = context2d.getImageData(0, 0, canvas.width, canvas.height);
             canvas.toBlob(async blob => {
                 const sizeInBytes = blob!.size;
                 const src = URL.createObjectURL(blob);
@@ -208,7 +221,6 @@
         padding-right: 10px;
         padding-top: 20px;
         width: 99%;
-        height: 174px;
         overflow-x: auto;
         white-space: nowrap;
         background-color: rgb(52, 143, 235);
