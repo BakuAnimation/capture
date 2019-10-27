@@ -188,15 +188,30 @@
             canvas.height = video.videoHeight;
             const context2d = canvas.getContext('2d')!;
             context2d.drawImage(video, 0, 0, canvas.width, canvas.height);
-            //const imageData = context2d.getImageData(0, 0, canvas.width, canvas.height);
-            canvas.toBlob(async blob => {
-                const sizeInBytes = blob!.size;
-                const src = URL.createObjectURL(blob);
-                this.captures.push({src, sizeInBytes});
+            const imageData = context2d.getImageData(0, 0, canvas.width, canvas.height);
+            HelloWorld.imageToBlob(imageData)
+                .then(async (blob: Blob) => {
+                    const sizeInBytes = blob!.size;
+                    const src = URL.createObjectURL(blob);
+                    this.captures.push({src, sizeInBytes});
 
-                await this.refreshStorage();
-                this.capturing = false;
-            }, "image/jpg", 1);
+                    await this.refreshStorage();
+                    this.capturing = false;
+                });
+        }
+
+        private static imageToBlob(imageData: ImageData, type: string = "image/jpg", quality: number = 1): Promise<Blob> {
+            const w = imageData.width;
+            const h = imageData.height;
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d")!;
+            ctx.putImageData(imageData, 0, 0);
+
+            return new Promise<Blob>((resolve, reject) => {
+                canvas.toBlob(blob => resolve(blob as Blob), type, quality);
+            });
         }
     }
 </script>
