@@ -10,7 +10,7 @@ interface Offers {
 
 const offers: Offers = {};
 
-app.use(express.static('../../dist'));
+app.use(express.static('../dist'));
 
 io.on('connection', function (socket: any) {
     socket.on('getOffer', function (msg: any) {
@@ -27,4 +27,8 @@ io.on('connection', function (socket: any) {
 
 http.listen(3000, function () {
     console.log('listening on *:3000');
+});
+
+httpsServer.listen(8443, function () {
+    console.log('listening on *:8443');
 });

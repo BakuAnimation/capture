@@ -6,7 +6,7 @@
 
     <p class="decode-result">
       Last result:
-      <b>{{ result }}</b>
+      <b>{{ socketId }}</b>
     </p>
 
     <qrcode-stream @decode="onDecode" @init="onInit" />

@@ -4,8 +4,8 @@
             <router-link to="/">Home</router-link>
             |
             <router-link to="/about">About</router-link>
-            <router-link to="/qr-reader">Qr Reader</router-link>
-            <router-link to="/qr-generator">Qr Generator</router-link>
+            <router-link to="/computer">Computer PoV</router-link>
+            <router-link to="/smartphone">Smartphone PoV</router-link>
         </div>
         <router-view/>
     </div>
@@ -24,6 +24,7 @@
     #nav a {
         font-weight: bold;
         color: #2c3e50;
+        margin-left: 16px;
     }
 
     #nav a.router-link-exact-active {
