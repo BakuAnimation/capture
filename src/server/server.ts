@@ -4,11 +4,11 @@ var app = express();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 
-export interface Offers{
+interface Offers {
     [id:string]: RTCSessionDescriptionInit
 }
 
-const offers: Offers = {}
+const offers: Offers = {};
 
 app.use(express.static('../../dist'));
 
