@@ -14,13 +14,13 @@
 </template>
 
 
-<script>
+<script lang="ts">
 import { QrcodeStream } from "vue-qrcode-reader";
 
 import { Component, Vue, Watch } from "vue-property-decorator";
 import { Map, Set } from "immutable";
 import { Filter, Filters } from "@/components/filters";
-import { io } from "socket.io";
+import io from "socket.io-client";
 
 @Component({
   components: { QrcodeStream }
@@ -29,13 +29,16 @@ export default class QrReader extends Vue {
   socketId = 0;
   socket = io();
 
+  error = "";
+  peerConnection = new RTCPeerConnection();
+
   mounted() {
-    this.socket.on("rtcOffer", msg => {
-      this.startStream(msg, this.socketId);
+    this.socket.on("rtcOffer", (msg: any) => {
+      this.startStream(msg);
     });
   }
 
-  onDecode(result) {
+  onDecode(result: any) {
     console.log("onDecode", result);
     this.socketId = result;
     this.socket.emit("getOffer", this.socketId);
@@ -43,7 +46,7 @@ export default class QrReader extends Vue {
     
   }
 
-  async onInit(promise) {
+  async onInit(promise: Promise<any>) {
     try {
       await promise;
     } catch (error) {
@@ -63,45 +66,44 @@ export default class QrReader extends Vue {
     }
   }
 
-  private async startStream(remoteOffer, offerer) {
-    const localVideo = document.getElementById('localVideo');
+  private async startStream(remoteOffer: any) {
+    const localVideo: any = document.getElementById('localVideo');
     const stream = await navigator.mediaDevices.getUserMedia({
         video: true
     });
     console.log('Received local stream');
     localVideo.srcObject = stream;
-    localStream = stream;
     // TODO: get remoteOffer from QR
-    peerConnection = new RTCPeerConnection();
-    peerConnection.ondatachannel = function (event) {
-        dataChannel = event.channel;
-        setChannelEvents(dataChannel);
+    
+    this.peerConnection.ondatachannel = (event) => {
+        const dataChannel = event.channel;
+        this.setChannelEvents(dataChannel);
     };
-    peerConnection.addEventListener('icecandidate', e => onIceCandidate(pc1, e));
-    localStream.getVideoTracks().forEach(track => pc1.addTrack(track, localStream));
+    // peerConnection.addEventListener('icecandidate', e => onIceCandidate(pc1, e));
+    stream.getVideoTracks().forEach(track => this.peerConnection.addTrack(track, stream));
     try {
-        await peerConnection.setRemoteDescription(remoteOffer);
+        await this.peerConnection.setRemoteDescription(remoteOffer);
     } catch (e) {
         console.error('Failed to set remote description', e);
     } 
     try {
-        answer = await peerConnection.createAnswer();
-        peerConnection.setLocalDescription(answer);
-        socket.emit('rtcAnswer', { answer, offerer});
+        const answer = await this.peerConnection.createAnswer();
+        this.peerConnection.setLocalDescription(answer);
+        this.socket.emit('rtcAnswer', { answer, offerer: this.socketId});
     } catch(e) {
         console.error('Failed sending answer',e);
     }
 }
 
-private setChannelEvents(channel) {
+private setChannelEvents(channel: RTCDataChannel) {
     channel.onmessage = function (event) {
         console.log('Message received', event);
     };
     channel.onopen = function () {
-        channel.push = channel.send;
-        channel.send = function (data) {
+        const channelpush = channel.send;
+        channel.send = (data: Object) => {
             console.log('Sending message: ', data);
-            channel.push(JSON.stringify(data));
+            channelpush(JSON.stringify(data));
         };
     };
 

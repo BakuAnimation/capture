@@ -35,11 +35,11 @@ export default class QrGenerator extends Vue {
   mounted() {
     this.remoteVideo = document.getElementById("remoteVideo");
     this.socket
-    this.socket.on("connect", (socket) => {
+    this.socket.on("connect", (socket: any) => {
       this.socketId = socket.id;
     });
 
-    this.socket.on("rtcAnswer", (msg) => {
+    this.socket.on("rtcAnswer", (msg: any) => {
       this.peerConnection.setRemoteDescription(msg.answer);
 
       // CONNECTION OK
