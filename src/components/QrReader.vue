@@ -26,23 +26,25 @@ import io from "socket.io-client";
   components: { QrcodeStream }
 })
 export default class QrReader extends Vue {
-  socketId = 0;
+  socketId: string | undefined = undefined;
   socket = io();
 
   error = "";
   peerConnection = new RTCPeerConnection();
 
-  mounted() {
-    this.socket.on("rtcOffer", (msg: any) => {
-      console.log(msg);
-      this.startStream(msg);
-    });
-  }
+  mounted() {}
 
-  onDecode(result: any) {
-    console.log("onDecode", result);
-    this.socketId = result;
-    this.socket.emit("getOffer", this.socketId);
+  onDecode(result: string) {
+    console.log("onDecode:", this.socketId);
+    if (!this.socketId) {
+      console.log("result", result);
+      this.socketId = result;
+      this.socket.on("rtcOffer", (msg: any) => {
+        console.log('MSG ', msg, this.socketId, result);
+        this.startStream(msg);
+      });
+      this.socket.emit("getOffer", this.socketId);
+    }
   }
 
   async onInit(promise: Promise<any>) {
@@ -66,56 +68,59 @@ export default class QrReader extends Vue {
   }
 
   private async startStream(remoteOffer: any) {
-    const localVideo: any = document.getElementById('localVideo');
+    // const localVideo: any = document.getElementById('localVideo');
     const stream = await navigator.mediaDevices.getUserMedia({
-        video: true
+      video: true
     });
-    console.log('Received local stream');
-    localVideo.srcObject = stream;
+    console.log("Received local stream");
+    // localVideo.srcObject = stream;
     // TODO: get remoteOffer from QR
-    
-    this.peerConnection.ondatachannel = (event) => {
-        const dataChannel = event.channel;
-        this.setChannelEvents(dataChannel);
+
+    this.peerConnection.ondatachannel = event => {
+      const dataChannel = event.channel;
+      this.setChannelEvents(dataChannel);
     };
     // peerConnection.addEventListener('icecandidate', e => onIceCandidate(pc1, e));
-    stream.getVideoTracks().forEach(track => this.peerConnection.addTrack(track, stream));
+    stream
+      .getVideoTracks()
+      .forEach(track => this.peerConnection.addTrack(track, stream));
     try {
-        await this.peerConnection.setRemoteDescription(remoteOffer);
+      console.log("remoteOffer", remoteOffer, this.peerConnection);
+      const res = await this.peerConnection.setRemoteDescription(remoteOffer);
+      console.log("RES", res);
     } catch (e) {
-        console.error('Failed to set remote description', e);
-    } 
-    try {
-        const answer = await this.peerConnection.createAnswer();
-        this.peerConnection.setLocalDescription(answer);
-        this.socket.emit('rtcAnswer', { answer, offerer: this.socketId});
-    } catch(e) {
-        console.error('Failed sending answer',e);
+      console.error("Failed to set remote description", e);
     }
-}
+    try {
+      console.log("createAnswer", this.socketId);
+      const answer = await this.peerConnection.createAnswer();
+      this.peerConnection.setLocalDescription(answer);
+      this.socket.emit("rtcAnswer", { answer, offerer: this.socketId });
+    } catch (e) {
+      console.error("Failed sending answer", e);
+    }
+  }
 
-private setChannelEvents(channel: RTCDataChannel) {
-    channel.onmessage = function (event) {
-        console.log('Message received', event);
+  private setChannelEvents(channel: RTCDataChannel) {
+    channel.onmessage = function(event) {
+      console.log("Message received", event);
     };
-    channel.onopen = function () {
-        const channelpush = channel.send;
-        channel.send = (data: Object) => {
-            console.log('Sending message: ', data);
-            channelpush(JSON.stringify(data));
-        };
+    channel.onopen = function() {
+      const channelpush = channel.send;
+      channel.send = (data: Object) => {
+        console.log("Sending message: ", data);
+        channelpush(JSON.stringify(data));
+      };
     };
 
-    channel.onerror = function (e) {
-        console.error('channel.onerror', JSON.stringify(e, null, '\t'));
+    channel.onerror = function(e) {
+      console.error("channel.onerror", JSON.stringify(e, null, "\t"));
     };
 
-    channel.onclose = function (e) {
-        console.warn('channel.onclose', JSON.stringify(e, null, '\t'));
+    channel.onclose = function(e) {
+      console.warn("channel.onclose", JSON.stringify(e, null, "\t"));
     };
-}
-
-
+  }
 }
 </script>
 
