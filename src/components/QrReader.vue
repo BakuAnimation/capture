@@ -34,6 +34,7 @@ export default class QrReader extends Vue {
 
   mounted() {
     this.socket.on("rtcOffer", (msg: any) => {
+      console.log(msg);
       this.startStream(msg);
     });
   }
@@ -42,8 +43,6 @@ export default class QrReader extends Vue {
     console.log("onDecode", result);
     this.socketId = result;
     this.socket.emit("getOffer", this.socketId);
-
-    
   }
 
   async onInit(promise: Promise<any>) {
