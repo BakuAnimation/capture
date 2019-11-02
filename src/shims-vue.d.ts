@@ -4,3 +4,5 @@ declare module "*.vue" {
 }
 
 declare module "vue-virtual-scroller";
+declare module "vue-qrcode-reader";
+declare module "@chenfengyuan/vue-qrcode";

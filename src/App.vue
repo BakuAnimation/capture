@@ -4,6 +4,8 @@
             <router-link to="/">Home</router-link>
             |
             <router-link to="/about">About</router-link>
+            <router-link to="/qr-reader">Qr Reader</router-link>
+            <router-link to="/qr-generator">Qr Generator</router-link>
         </div>
         <router-view/>
     </div>

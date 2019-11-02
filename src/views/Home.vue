@@ -1,19 +1,7 @@
 <template>
   <div>
-    <HelloWorld msg="Welcome to Your Vue.js App" />
+    <h1>Select a platform</h1>
+    <router-link to="/computer">Computer</router-link>
+    <router-link to="/smartphone">Smartphone</router-link>
   </div>
 </template>
-
-<script>
-import HelloWorld from "@/components/HelloWorld.vue";
-
-export default {
-  name: "home",
-  components: {
-    HelloWorld
-  }
-};
-</script>
-
-<style>
-</style>
