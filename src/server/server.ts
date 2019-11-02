@@ -12,16 +12,16 @@ const offers: Offers = {}
 
 app.use(express.static('../../dist'));
 
-io.on('connection', function (socket) {
-    socket.on('getOffer', function (msg) {
-        console.log(this.offers);
-        socket.emit('rtcOffer', this.offers[msg]);
+io.on('connection', function (socket: any) {
+    socket.on('getOffer', function (msg: any) {
+        console.log(offers);
+        socket.emit('rtcOffer', offers[msg]);
     });
-    socket.on('rtcAnswer', function (msg) {
+    socket.on('rtcAnswer', function (msg: any) {
         io.to(`${msg.offerer}`).emit('rtcAnswer', msg);
     });
-    socket.on('rtcOffer', function (msg){
-        this.offers[msg.offerer] = msg.offer;
+    socket.on('rtcOffer', function (msg: any){
+        offers[msg.offerer] = msg.offer;
     })
 });
 
