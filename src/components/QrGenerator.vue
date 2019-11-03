@@ -6,6 +6,7 @@
     {{value}}
     <qrcode :value="value" :options="options" v-if="value"></qrcode>
     <video id="remoteVideo" autoplay muted playsinline></video>
+    <button id="captureButton">Capture!</button>
   </div>
 </template>
 
@@ -31,14 +32,20 @@ export default class QrGenerator extends Vue {
 
   remoteVideo: any = null;
   peerConnection = new RTCPeerConnection({
-  'iceServers': [
-    {
-      'urls': 'stun:stun.l.google.com:19302'
-    },
-  ]
-});
+    iceServers: [
+      {
+        urls: "stun:stun.l.google.com:19302"
+      }
+    ]
+  });
+  dataChannel: RTCDataChannel = this.peerConnection.createDataChannel(
+    "channel",
+    {}
+  );
 
   mounted() {
+    const captureButton = document.getElementById("captureButton") as HTMLElement;
+    captureButton.addEventListener("click", this.capture.bind(this));
     console.log("IsConnected ?", this.$store.state.isConnected);
 
     this.remoteVideo = document.getElementById("remoteVideo");
@@ -86,8 +93,7 @@ export default class QrGenerator extends Vue {
   }
 
   public async createOffer() {
-    const dataChannel = this.peerConnection.createDataChannel("channel", {});
-    this.setChannelEvents(dataChannel);
+    this.setChannelEvents(this.dataChannel);
 
     // Creating the offset
     try {
@@ -107,13 +113,13 @@ export default class QrGenerator extends Vue {
     channel.onmessage = event => {
       console.log("Message received", event);
     };
-    channel.onopen = () => {
-      const channelpush = channel.send;
-      channel.send = (data: Object) => {
-        console.log("Sending message: ", data);
-        channelpush(JSON.stringify(data));
-      };
-    };
+    // channel.onopen = () => {
+    //   const channelpush = channel.send;
+    //   channel.send = (data: Object) => {
+    //     console.log("Sending message: ", data);
+    //     channelpush(JSON.stringify(data));
+    //   };
+    // };
 
     channel.onerror = function(e) {
       console.error("channel.onerror", JSON.stringify(e, null, "\t"));
@@ -134,6 +140,15 @@ export default class QrGenerator extends Vue {
       this.remoteVideo.srcObject = e.streams[0];
       console.log("pc2 received remote stream");
     }
+  }
+
+  private capture() {
+    this.dataChannel.send(
+      JSON.stringify({
+        message: "capture",
+        type: "cmd"
+      })
+    );
   }
 }
 </script>

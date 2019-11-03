@@ -10,7 +10,7 @@
     </p>
 
     <qrcode-stream @decode="onDecode" @init="onInit" v-if="activeqrreader" />
-    <video id="localVideo" autoplay playsinline v-else></video>
+    <video id="localVideo" autoplay playsinline v-else width="1920" height="1080"></video>
   </div>
 </template>
 
@@ -29,15 +29,15 @@ import io from "socket.io-client";
 export default class QrReader extends Vue {
   socketId: string | undefined = undefined;
   socket = io();
-
+  localVideo: any;
   error = "";
   peerConnection = new RTCPeerConnection({
-  'iceServers': [
-    {
-      'urls': 'stun:stun.l.google.com:19302'
-    },
-  ]
-});
+    iceServers: [
+      {
+        urls: "stun:stun.l.google.com:19302"
+      }
+    ]
+  });
 
   activeqrreader = true;
 
@@ -56,7 +56,7 @@ export default class QrReader extends Vue {
       this.onIceCandaidate.bind(this)
     );
 
-    this.peerConnection.onconnectionstatechange = (event) => {
+    this.peerConnection.onconnectionstatechange = event => {
       if (this.peerConnection.connectionState == "connected") {
         console.log("CONNECTION OK");
         // CONNECTION OK
@@ -95,16 +95,16 @@ export default class QrReader extends Vue {
   }
 
   private async startStream(remoteOffer: any) {
-    const localVideo: any = document.getElementById('localVideo');
+    this.localVideo = document.getElementById("localVideo");
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: {
-          exact :'environment'
+          exact: "environment"
         }
       }
     });
     console.log("Received local stream");
-    // localVideo.srcObject = stream;
+    this.localVideo.srcObject = stream;
     // TODO: get remoteOffer from QR
 
     this.peerConnection.ondatachannel = event => {
@@ -134,7 +134,21 @@ export default class QrReader extends Vue {
 
   private setChannelEvents(channel: RTCDataChannel) {
     channel.onmessage = function(event) {
-      console.log("Message received", event);
+      let data = JSON.parse(event.data);
+      if (data.type === "cmd") {
+        const canvas = document.createElement("canvas");
+        const video =  document.getElementById("localVideo") as any;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context2d = canvas.getContext("2d") as CanvasRenderingContext2D;
+        context2d.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const base64 = canvas.toDataURL();
+        var link = document.createElement("a");
+
+        link.setAttribute("href", base64);
+        link.setAttribute("download", "toto.png");
+        link.click();
+      }
     };
     channel.onopen = function() {
       const channelpush = channel.send;
