@@ -22,6 +22,7 @@ import { Component, Vue, Watch } from "vue-property-decorator";
 import { Map, Set } from "immutable";
 import { Filter, Filters } from "@/components/filters";
 import io from "socket.io-client";
+import * as uuid from "uuid";
 
 @Component({
   components: { QrcodeStream }
@@ -97,7 +98,9 @@ export default class QrReader extends Vue {
   private async startStream(remoteOffer: any) {
     this.localVideo = document.getElementById("localVideo");
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
+      video:  {
+        width: { min: 1280 },
+        height: { min: 720 },
         facingMode: {
           exact: "environment"
         }
@@ -137,17 +140,25 @@ export default class QrReader extends Vue {
       let data = JSON.parse(event.data);
       if (data.type === "cmd") {
         const canvas = document.createElement("canvas");
-        const video =  document.getElementById("localVideo") as any;
+        const video = document.getElementById("localVideo") as any;
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         const context2d = canvas.getContext("2d") as CanvasRenderingContext2D;
         context2d.drawImage(video, 0, 0, canvas.width, canvas.height);
         const base64 = canvas.toDataURL();
-        var link = document.createElement("a");
 
-        link.setAttribute("href", base64);
-        link.setAttribute("download", "toto.png");
-        link.click();
+        var formData = new FormData();
+        const blob = imagetoblob(base64);
+        console.log('blob size:', blob.size);
+        formData.append('image', blob, uuid.v4());
+        var request = new XMLHttpRequest();
+        request.open("POST", `https://${location.hostname}/back/totoproject/upload/`);
+        request.send(formData);
+        // var link = document.createElement("a");
+
+        // link.setAttribute("href", base64);
+        // link.setAttribute("download", "toto.png");
+        // link.click();
       }
     };
     channel.onopen = function() {
@@ -170,6 +181,43 @@ export default class QrReader extends Vue {
   private onIceCandaidate(event: any) {
     this.socket.emit("icecandidate", event.candidate);
   }
+}
+
+function b64toBlob(b64Data: string, contentType: string, sliceSize?: number) {
+  contentType = contentType || "";
+  sliceSize = sliceSize || 512;
+
+  var byteCharacters = atob(b64Data);
+  var byteArrays = [];
+
+  for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+    var byteNumbers = new Array(slice.length);
+    for (var i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+
+    var byteArray = new Uint8Array(byteNumbers);
+
+    byteArrays.push(byteArray);
+  }
+
+  var blob = new Blob(byteArrays, { type: contentType });
+  return blob;
+}
+
+function imagetoblob(base64String: string) {
+  var ImageURL = base64String;
+  // Split the base64 string in data and contentType
+  var block = ImageURL.split(";");
+  // Get the content type of the image
+  var contentType = block[0].split(":")[1]; // In this case "image/gif"
+  // get the real base64 content of the file
+  var realData = block[1].split(",")[1]; // In this case "R0lGODlhPQBEAPeoAJosM...."
+
+  // Convert it to a blob to upload
+  return b64toBlob(realData, contentType);
 }
 </script>
 
