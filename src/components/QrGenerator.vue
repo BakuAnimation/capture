@@ -30,7 +30,13 @@ export default class QrGenerator extends Vue {
   socket: SocketIOClient.Socket = io();
 
   remoteVideo: any = null;
-  peerConnection = new RTCPeerConnection();
+  peerConnection = new RTCPeerConnection({
+  'iceServers': [
+    {
+      'urls': 'stun:stun.l.google.com:19302'
+    },
+  ]
+});
 
   mounted() {
     console.log("IsConnected ?", this.$store.state.isConnected);
