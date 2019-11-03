@@ -5,6 +5,7 @@
     <h3>Scannez ce QR-Code depuis l'appli baku-ui depuis votre smartphone:</h3>
     {{value}}
     <qrcode :value="value" :options="options" v-if="value"></qrcode>
+    <video id="remoteVideo" playauto muted playsinline></video>
   </div>
 </template>
 
@@ -33,15 +34,20 @@ export default class QrGenerator extends Vue {
   peerConnection = new RTCPeerConnection();
 
   mounted() {
+    console.log('IsConnected ?', this.$store.state.isConnected)
+    this.$store.commit('setupConnection');
+    console.log('IsConnected ?', this.$store.state.isConnected)
     this.remoteVideo = document.getElementById("remoteVideo");
     this.socket.on("connect", () => {
       this.socketId = this.socket.id;
     });
 
     this.socket.on("rtcAnswer", (msg: any) => {
-      this.peerConnection.setRemoteDescription(msg.answer);
-
+      console.log('RTC AnsWER2', msg);
+      this.peerConnection.setRemoteDescription(msg);
+      console.log('CONNECTION OK');
       // CONNECTION OK
+      this.$store.commit('setupConnection');
     });
 
     this.createOffer().then(offer => {
@@ -89,19 +95,6 @@ export default class QrGenerator extends Vue {
     };
   }
 
-  // private async onIceCandidate(pc, event) {
-  //   try {
-  //     await getOtherPc(pc).addIceCandidate(event.candidate);
-  //   } catch (e) {
-  //     onAddIceCandidateError(pc, e);
-  //   }
-  // }
-
-  // private onAddIceCandidateError(pc, error) {
-  //   console.log(
-  //     `${getName(pc)} failed to add ICE Candidate: ${error.toString()}`
-  //   );
-  // }
 
   private gotRemoteStream(e: any) {
     if (this.remoteVideo.srcObject !== e.streams[0]) {

@@ -19,11 +19,12 @@ app.use(express.static('dist'));
 
 io.on('connection', function (socket: any) {
     socket.on('getOffer', function (msg: string) {
-        const key = JSON.parse(msg);
-        socket.emit('rtcOffer', offers[key]);
+        msg = JSON.parse(msg);
+        socket.emit('rtcOffer', offers[msg]);
     });
     socket.on('rtcAnswer', function (msg: any) {
-        io.to(`${msg.offerer}`).emit('rtcAnswer', msg);
+        console.log('msg.answer', msg.answer);
+        io.to(`${JSON.parse(msg.offerer)}`).emit('rtcAnswer', msg.answer);
     });
     socket.on('rtcOffer', function (msg: any) {
         offers[msg.offerer] = msg.offer;
