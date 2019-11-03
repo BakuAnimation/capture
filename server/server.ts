@@ -9,26 +9,41 @@ var https = require('https').createServer({
 }, app)
 var io = require('socket.io')(https);
 
-interface Offers {
-    [id: string]: RTCSessionDescriptionInit
+// interface Offers {
+//     [id: string]: RTCSessionDescriptionInit
+// }
+interface Link {
+    [id: string]: string;
 }
 
-const offers: Offers = {};
+const links: Link = {};
 app.use(historyfallback())
 app.use(express.static('dist'));
 
 io.on('connection', function (socket: any) {
-    socket.on('getOffer', function (msg: string) {
-        msg = JSON.parse(msg);
-        socket.emit('rtcOffer', offers[msg]);
+
+    socket.on('link', function (msg: string) {
+        const clientid = JSON.parse(msg);
+        console.log('link', clientid);
+        links[socket.id] = clientid;
+        links[clientid] = socket.id;
+        io.to(clientid).emit('linkEstablished', 'ok');
     });
-    socket.on('rtcAnswer', function (msg: any) {
-        console.log('msg.answer', msg.answer);
-        io.to(`${JSON.parse(msg.offerer)}`).emit('rtcAnswer', msg.answer);
-    });
+
     socket.on('rtcOffer', function (msg: any) {
-        offers[msg.offerer] = msg.offer;
-    })
+        console.log('rtcOffer');
+        io.to(links[socket.id]).emit('rtcOffer', msg);
+    });
+
+    socket.on('rtcAnswer', function (msg: any) {
+        console.log('rtcAnswer');
+        io.to(links[socket.id]).emit('rtcAnswer', msg);
+    });
+
+    socket.on('icecandidate', function (msg: any) {
+        console.log('icecandidate');
+        io.to(links[socket.id]).emit('icecandidate', msg);
+    });
 });
 
 https.listen(3000, function () {

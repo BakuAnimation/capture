@@ -9,7 +9,8 @@
       <b>{{ socketId }}</b>
     </p>
 
-    <qrcode-stream @decode="onDecode" @init="onInit" />
+    <qrcode-stream @decode="onDecode" @init="onInit" v-if="activeqrreader" />
+    <video id="localVideo" autoplay playsinline v-else></video>
   </div>
 </template>
 
@@ -32,17 +33,38 @@ export default class QrReader extends Vue {
   error = "";
   peerConnection = new RTCPeerConnection();
 
-  mounted() {}
+  activeqrreader = true;
+
+  mounted() {
+    this.socket.on("rtcOffer", (msg: any) => {
+      console.log("call startStream ", msg);
+      this.startStream(msg);
+    });
+
+    this.socket.on("icecandidate", (msg: any) => {
+      this.peerConnection.addIceCandidate(msg);
+    });
+
+    this.peerConnection.addEventListener(
+      "icecandidate",
+      this.onIceCandaidate.bind(this)
+    );
+
+    this.peerConnection.onconnectionstatechange = (event) => {
+      if (this.peerConnection.connectionState == "connected") {
+        console.log("CONNECTION OK");
+        // CONNECTION OK
+        this.$store.commit("setupConnection");
+      }
+    };
+  }
 
   onDecode(result: string) {
     console.log("onDecode", result, this.socketId);
     if (!this.socketId) {
+      this.activeqrreader = false;
       this.socketId = result;
-      this.socket.on("rtcOffer", (msg: any) => {
-        console.log('call startStream ', msg);
-        this.startStream(msg);
-      });
-      this.socket.emit("getOffer", this.socketId);
+      this.socket.emit("link", this.socketId);
     }
   }
 
@@ -67,15 +89,19 @@ export default class QrReader extends Vue {
   }
 
   private async startStream(remoteOffer: any) {
-    // const localVideo: any = document.getElementById('localVideo');
+    const localVideo: any = document.getElementById('localVideo');
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: true
+      video: {
+        facingMode: {
+          exact :'environment'
+        }
+      }
     });
     console.log("Received local stream");
     // localVideo.srcObject = stream;
     // TODO: get remoteOffer from QR
 
-    this.peerConnection.ondatachannel = (event) => {
+    this.peerConnection.ondatachannel = event => {
       const dataChannel = event.channel;
       this.setChannelEvents(dataChannel);
     };
@@ -89,11 +115,12 @@ export default class QrReader extends Vue {
     } catch (e) {
       console.error("Failed to set remote description", e);
     }
+
     try {
       console.log("createAnswer", this.socketId);
       const answer = await this.peerConnection.createAnswer();
-      this.peerConnection.setLocalDescription(answer);
-      this.socket.emit("rtcAnswer", { answer, offerer: this.socketId });
+      await this.peerConnection.setLocalDescription(answer);
+      this.socket.emit("rtcAnswer", answer);
     } catch (e) {
       console.error("Failed sending answer", e);
     }
@@ -118,6 +145,10 @@ export default class QrReader extends Vue {
     channel.onclose = function(e) {
       console.warn("channel.onclose", JSON.stringify(e, null, "\t"));
     };
+  }
+
+  private onIceCandaidate(event: any) {
+    this.socket.emit("icecandidate", event.candidate);
   }
 }
 </script>
