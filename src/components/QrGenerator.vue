@@ -22,11 +22,11 @@ export default class QrGenerator extends Vue {
   value = `Scannez ce QR-Code dna=sctp-port:5000rnrna=max-message-size:262144rnrn"}`;
 
   options = {
-    width: 1000,
+    width: 100,
     scale: 1
   };
 
-  socketId = 0;
+  socketId = "";
   socket: SocketIOClient.Socket = io();
 
   remoteVideo: any = null;
@@ -34,8 +34,8 @@ export default class QrGenerator extends Vue {
 
   mounted() {
     this.remoteVideo = document.getElementById("remoteVideo");
-    this.socket.on("connect", (socket: any) => {
-      this.socketId = socket.id;
+    this.socket.on("connect", () => {
+      this.socketId = this.socket.id;
     });
 
     this.socket.on("rtcAnswer", (msg: any) => {
@@ -54,9 +54,6 @@ export default class QrGenerator extends Vue {
   public async createOffer() {
     const dataChannel = this.peerConnection.createDataChannel("channel", {});
     this.setChannelEvents(dataChannel);
-    // peerConnection.addEventListener("icecandidate", e =>
-    //   this.onIceCandidate(peerConnection, e)
-    // );
     this.peerConnection.addEventListener("track", this.gotRemoteStream.bind(this));
 
     // Creating the offset

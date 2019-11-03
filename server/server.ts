@@ -2,9 +2,10 @@
 var express = require('express');
 var fs = require('fs');
 var app = express();
+var historyfallback = require('connect-history-api-fallback');
 var https = require('https').createServer({
-    key: fs.readFileSync('server.key'),
-    cert: fs.readFileSync('server.cert')
+    key: fs.readFileSync('server/server.key'),
+    cert: fs.readFileSync('server/server.cert')
 }, app)
 var io = require('socket.io')(https);
 
@@ -13,12 +14,13 @@ interface Offers {
 }
 
 const offers: Offers = {};
-
-app.use(express.static('../dist'));
+app.use(historyfallback())
+app.use(express.static('dist'));
 
 io.on('connection', function (socket: any) {
-    socket.on('getOffer', function (msg: any) {
-        socket.emit('rtcOffer', offers[msg]);
+    socket.on('getOffer', function (msg: string) {
+        const key = JSON.parse(msg);
+        socket.emit('rtcOffer', offers[key]);
     });
     socket.on('rtcAnswer', function (msg: any) {
         io.to(`${msg.offerer}`).emit('rtcAnswer', msg);

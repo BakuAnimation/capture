@@ -35,12 +35,11 @@ export default class QrReader extends Vue {
   mounted() {}
 
   onDecode(result: string) {
-    console.log("onDecode:", this.socketId);
+    console.log("onDecode", result, this.socketId);
     if (!this.socketId) {
-      console.log("result", result);
       this.socketId = result;
       this.socket.on("rtcOffer", (msg: any) => {
-        console.log('MSG ', msg, this.socketId, result);
+        console.log('call startStream ', msg);
         this.startStream(msg);
       });
       this.socket.emit("getOffer", this.socketId);
@@ -76,18 +75,17 @@ export default class QrReader extends Vue {
     // localVideo.srcObject = stream;
     // TODO: get remoteOffer from QR
 
-    this.peerConnection.ondatachannel = event => {
+    this.peerConnection.ondatachannel = (event) => {
       const dataChannel = event.channel;
       this.setChannelEvents(dataChannel);
     };
-    // peerConnection.addEventListener('icecandidate', e => onIceCandidate(pc1, e));
+
     stream
       .getVideoTracks()
       .forEach(track => this.peerConnection.addTrack(track, stream));
     try {
       console.log("remoteOffer", remoteOffer, this.peerConnection);
       const res = await this.peerConnection.setRemoteDescription(remoteOffer);
-      console.log("RES", res);
     } catch (e) {
       console.error("Failed to set remote description", e);
     }
